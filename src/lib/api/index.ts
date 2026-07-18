@@ -199,10 +199,31 @@ function trendBounds(month: string) {
 	return { startDate: start.toISOString().slice(0, 10), endDate: monthBounds(month).endDate };
 }
 
+function fillMonthlyPeriods(selectedMonth: string, periods: RawPeriod[]): RawPeriod[] {
+	const [year, month] = selectedMonth.split('-').map(Number);
+	const periodsByMonth = new Map(periods.map((item) => [item.period, item]));
+
+	return Array.from({ length: 6 }, (_, index) => {
+		const date = new Date(Date.UTC(year, month - 1 - (5 - index), 1));
+		const key = date.toISOString().slice(0, 7);
+		const existing = periodsByMonth.get(key);
+
+		return {
+			period: date.toLocaleString('en', {
+				month: 'short',
+				timeZone: 'UTC'
+			}),
+			incomeCents: existing?.incomeCents ?? 0,
+			expenseCents: existing?.expenseCents ?? 0
+		};
+	});
+}
+
 function dashboardFromRaw(
 	summary: RawDashboard,
 	trend: RawPeriod[],
 	recurring: RawRecurring[],
+	selectedMonth: string,
 	balanceCents = summary.netCents
 ): DashboardData {
 	const income = amount(summary.incomeCents);
@@ -212,7 +233,7 @@ function dashboardFromRaw(
 		income,
 		expenses,
 		savingsRate: income ? Math.round(((income - expenses) / income) * 100) : 0,
-		monthlyTrend: trend.map((item) => ({
+		monthlyTrend: fillMonthlyPeriods(selectedMonth, trend).map((item) => ({
 			month: item.period,
 			income: amount(item.incomeCents),
 			expenses: amount(item.expenseCents)
@@ -336,7 +357,7 @@ export const api = {
 						: 0),
 			0
 		);
-		return dashboardFromRaw(summary, analytics.periods, recurring, balance);
+		return dashboardFromRaw(summary, analytics.periods, recurring, month, balance);
 	},
 	async getAnalytics(month: string): Promise<AnalyticsData> {
 		if (!inTauri()) return mockApi.getAnalytics();
@@ -352,7 +373,7 @@ export const api = {
 				filter: { ...bounds, transactionType: 'expense', limit: 500 }
 			})
 		]);
-		const base = dashboardFromRaw(summary, raw.periods, recurring);
+		const base = dashboardFromRaw(summary, raw.periods, recurring, month);
 		const expenses = transactions.map(transactionFromRaw).sort((a, b) => b.amount - a.amount);
 		const days = new Date(`${bounds.endDate}T00:00:00Z`).getUTCDate();
 		return {
