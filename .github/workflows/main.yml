@@ -39,7 +39,7 @@ jobs:
             target: x86_64-apple-darwin
             args: '--target x86_64-apple-darwin --bundles dmg'
 
-   runs-on: ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Check out repository
@@ -75,7 +75,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-       - name: Verify release version
+      - name: Verify release version
         run: |
           node -e "const fs=require('node:fs'); const pkg=JSON.parse(fs.readFileSync('package.json')); const tauri=JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json')); const cargo=fs.readFileSync('src-tauri/Cargo.toml','utf8').match(/\[package\][\s\S]*?^version\s*=\s*\"([^\"]+)\"/m); const tag=process.env.GITHUB_REF_NAME; if(tag !== 'v'+tauri.version || pkg.version !== tauri.version || cargo?.[1] !== tauri.version){ console.error('Version mismatch: tag=%s package=%s tauri=%s cargo=%s',tag,pkg.version,tauri.version,cargo?.[1]); process.exit(1); }"
 
