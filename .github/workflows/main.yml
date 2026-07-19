@@ -39,7 +39,7 @@ jobs:
             target: x86_64-apple-darwin
             args: '--target x86_64-apple-darwin --bundles dmg'
 
-    runs-on: ${{ matrix.platform }}
+   runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Check out repository
@@ -55,7 +55,7 @@ jobs:
             librsvg2-dev \
             patchelf \
             xdg-utils
-
+            
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
