@@ -4,7 +4,7 @@
 
 A local-first desktop expense tracker for understanding your spending without giving up your data.
 
-[![Release](https://img.shields.io/github/v/release/qutad/Fera?style=flat-square)](https://github.com/qutad/Fera/releases)
+[![Release](https://img.shields.io/github/v/release/qutad/Fern?style=flat-square)](https://github.com/qutad/Fern/releases)
 [![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app/)
 [![Svelte](https://img.shields.io/badge/Svelte-5-FF3E00?style=flat-square&logo=svelte&logoColor=white)](https://svelte.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -48,7 +48,7 @@ Your financial data is stored in a local SQLite database. Fern requires no accou
 
 ## Download
 
-Installers are published through [GitHub Releases](https://github.com/qutad/Fera/releases).
+Installers are published through [GitHub Releases](https://github.com/qutad/Fern/releases).
 
 | Platform | Package |
 | --- | --- |
@@ -73,8 +73,8 @@ Before starting, install:
 Clone the repository and install its dependencies:
 
 ```sh
-git clone https://github.com/qutad/Fera.git
-cd Fera
+git clone https://github.com/qutad/Fern.git
+cd Fern
 npm ci
 ```
 
