@@ -85,7 +85,8 @@ jobs:
         run: npm ci
 
       - name: Synchronize release version
-        run: npm run release:version
+        run: |
+          node -e 'const fs=require("node:fs"); const tag=process.env.RELEASE_TAG; const match=/^v\.?((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/.exec(tag??""); if(!match){console.error(`Invalid release tag "${tag??""}". Use v0.1.2 or v.0.1.2.`);process.exit(1)} const version=match[1]; const writeJson=(path,value)=>fs.writeFileSync(path,JSON.stringify(value,null,"\t")+"\n"); const pkg=require("./package.json"); pkg.version=version; writeJson("package.json",pkg); const lock=require("./package-lock.json"); lock.version=version; lock.packages[""].version=version; writeJson("package-lock.json",lock); const tauri=require("./src-tauri/tauri.conf.json"); tauri.version=version; writeJson("src-tauri/tauri.conf.json",tauri); const replace=(path,pattern)=>{const value=fs.readFileSync(path,"utf8");if(!pattern.test(value))throw new Error(`Could not update ${path}`);fs.writeFileSync(path,value.replace(pattern,`$1${version}$2`))}; replace("src-tauri/Cargo.toml",/(\[package\][\s\S]*?^version\s*=\s*")[^"]+(".*$)/m); replace("src-tauri/Cargo.lock",/(\[\[package\]\]\r?\nname = "app"\r?\nversion = ")[^"]+(".*$)/m); console.log(`Building Fern ${version} from tag ${tag}.`);'
 
       - name: Build and publish release
         uses: tauri-apps/tauri-action@v1
@@ -146,7 +147,8 @@ jobs:
         run: npm ci
 
       - name: Synchronize release version
-        run: npm run release:version
+        run: |
+          node -e 'const fs=require("node:fs"); const tag=process.env.RELEASE_TAG; const match=/^v\.?((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/.exec(tag??""); if(!match){console.error(`Invalid release tag "${tag??""}". Use v0.1.2 or v.0.1.2.`);process.exit(1)} const version=match[1]; const writeJson=(path,value)=>fs.writeFileSync(path,JSON.stringify(value,null,"\t")+"\n"); const pkg=require("./package.json"); pkg.version=version; writeJson("package.json",pkg); const lock=require("./package-lock.json"); lock.version=version; lock.packages[""].version=version; writeJson("package-lock.json",lock); const tauri=require("./src-tauri/tauri.conf.json"); tauri.version=version; writeJson("src-tauri/tauri.conf.json",tauri); const replace=(path,pattern)=>{const value=fs.readFileSync(path,"utf8");if(!pattern.test(value))throw new Error(`Could not update ${path}`);fs.writeFileSync(path,value.replace(pattern,`$1${version}$2`))}; replace("src-tauri/Cargo.toml",/(\[package\][\s\S]*?^version\s*=\s*")[^"]+(".*$)/m); replace("src-tauri/Cargo.lock",/(\[\[package\]\]\r?\nname = "app"\r?\nversion = ")[^"]+(".*$)/m); console.log(`Building Fern ${version} from tag ${tag}.`);'
 
       - name: Configure Android signing
         env:
@@ -211,7 +213,8 @@ jobs:
         run: npm ci
 
       - name: Synchronize release version
-        run: npm run release:version
+        run: |
+          node -e 'const fs=require("node:fs"); const tag=process.env.RELEASE_TAG; const match=/^v\.?((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/.exec(tag??""); if(!match){console.error(`Invalid release tag "${tag??""}". Use v0.1.2 or v.0.1.2.`);process.exit(1)} const version=match[1]; const writeJson=(path,value)=>fs.writeFileSync(path,JSON.stringify(value,null,"\t")+"\n"); const pkg=require("./package.json"); pkg.version=version; writeJson("package.json",pkg); const lock=require("./package-lock.json"); lock.version=version; lock.packages[""].version=version; writeJson("package-lock.json",lock); const tauri=require("./src-tauri/tauri.conf.json"); tauri.version=version; writeJson("src-tauri/tauri.conf.json",tauri); const replace=(path,pattern)=>{const value=fs.readFileSync(path,"utf8");if(!pattern.test(value))throw new Error(`Could not update ${path}`);fs.writeFileSync(path,value.replace(pattern,`$1${version}$2`))}; replace("src-tauri/Cargo.toml",/(\[package\][\s\S]*?^version\s*=\s*")[^"]+(".*$)/m); replace("src-tauri/Cargo.lock",/(\[\[package\]\]\r?\nname = "app"\r?\nversion = ")[^"]+(".*$)/m); console.log(`Building Fern ${version} from tag ${tag}.`);'
 
       - name: Build unsigned iOS IPA
         run: npm run ios:build:unsigned
