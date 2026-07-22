@@ -106,6 +106,8 @@ npm run build
 
 Generated desktop packages are written to the Tauri target directory.
 
+The release workflow derives the application version from its tag and applies it to every desktop and mobile package. Prefer tags such as `v0.1.2`; the legacy `v.0.1.2` form is also accepted.
+
 ## Mobile Development
 
 Fern uses the same Svelte interface, Rust commands, and SQLite database on desktop, Android, and iOS. Native projects are stored in `src-tauri/gen/android` and `src-tauri/gen/apple`.
