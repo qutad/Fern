@@ -207,7 +207,7 @@ pub struct CsvColumnMapping {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CsvImportOptions {
-    pub path: String,
+    pub contents: String,
     pub mapping: CsvColumnMapping,
     pub account_id: String,
     pub default_category_id: Option<String>,

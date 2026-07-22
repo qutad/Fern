@@ -34,27 +34,27 @@ Your financial data is stored in a local SQLite database. Fern requires no accou
 
 ## Features
 
-| Feature | Description |
-| --- | --- |
-| **Dashboard** | Review balances, income, expenses, savings rate, and recent activity. |
-| **Transactions** | Add, edit, delete, search, and filter income, expenses, and transfers. |
-| **Budgets** | Create monthly category budgets and track remaining spending. |
-| **Recurring activity** | Manage subscriptions, bills, and repeating income. |
-| **Analytics** | Explore daily spending, category breakdowns, and long-term cash flow. |
-| **CSV tools** | Import bank CSV files with column mapping or export your ledger. |
-| **Backups** | Create and restore complete database snapshots. |
-| **Preferences** | Choose a currency, theme, and preferred first day of the week. |
-| **Local storage** | Keep your financial information on your own device. |
+| Feature                | Description                                                            |
+| ---------------------- | ---------------------------------------------------------------------- |
+| **Dashboard**          | Review balances, income, expenses, savings rate, and recent activity.  |
+| **Transactions**       | Add, edit, delete, search, and filter income, expenses, and transfers. |
+| **Budgets**            | Create monthly category budgets and track remaining spending.          |
+| **Recurring activity** | Manage subscriptions, bills, and repeating income.                     |
+| **Analytics**          | Explore daily spending, category breakdowns, and long-term cash flow.  |
+| **CSV tools**          | Import bank CSV files with column mapping or export your ledger.       |
+| **Backups**            | Create and restore complete database snapshots.                        |
+| **Preferences**        | Choose a currency, theme, and preferred first day of the week.         |
+| **Local storage**      | Keep your financial information on your own device.                    |
 
 ## Download
 
 Installers are published through [GitHub Releases](https://github.com/qutad/Fern/releases).
 
-| Platform | Package |
-| --- | --- |
-| Linux | AppImage |
-| Windows | NSIS installer |
-| macOS | DMG for Apple Silicon and Intel |
+| Platform | Package                         |
+| -------- | ------------------------------- |
+| Linux    | AppImage                        |
+| Windows  | NSIS installer                  |
+| macOS    | DMG for Apple Silicon and Intel |
 
 Download the latest package for your operating system and follow its standard installation process.
 
@@ -106,6 +106,48 @@ npm run build
 
 Generated desktop packages are written to the Tauri target directory.
 
+## Mobile Development
+
+Fern uses the same Svelte interface, Rust commands, and SQLite database on desktop, Android, and iOS. Native projects are stored in `src-tauri/gen/android` and `src-tauri/gen/apple`.
+
+### Android
+
+Install Android Studio, the Android SDK/NDK, and the Android Rust targets described in the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/#android). Set `JAVA_HOME`, `ANDROID_HOME`, and `NDK_HOME` before running:
+
+```sh
+npm run android:dev
+npm run android:build:debug
+npm run android:build
+```
+
+The debug command creates an installable debug-signed APK. Release APKs must be signed for installation. Generate a private keystore outside this repository, copy `src-tauri/gen/android/keystore.properties.example` to `src-tauri/gen/android/keystore.properties`, and replace its values. The real properties file and keystore must never be committed.
+
+Android APKs are written below `src-tauri/gen/android/app/build/outputs/apk`.
+
+GitHub release builds require these repository or organization secrets:
+
+- `ANDROID_KEYSTORE_BASE64`: base64-encoded release keystore
+- `ANDROID_KEYSTORE_PASSWORD`: keystore and key password
+- `ANDROID_KEY_ALIAS`: key alias
+
+Create the base64 value on macOS with `base64 -i /path/to/upload-keystore.jks | pbcopy`, or on Linux with `base64 -w 0 /path/to/upload-keystore.jks`. Keep the original keystore backed up securely; future versions must use the same key so Android can install updates.
+
+### iOS
+
+iOS development requires macOS, Xcode with an iOS simulator runtime, CocoaPods, and the iOS Rust targets described in the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/#ios).
+
+```sh
+npm run ios:dev
+npm run ios:build
+npm run ios:build:unsigned
+```
+
+The unsigned command creates `src-tauri/gen/apple/build/arm64/Fern.ipa`. It cannot run directly on a normal iPhone; users must sign it with their own Apple ID through a tool such as AltStore or Sideloadly. Free Apple ID signatures generally expire after seven days.
+
+The release workflow builds this unsigned IPA without Apple certificates or provisioning-profile secrets and attaches it to the matching GitHub release.
+
+CSV import/export and database backups use native document pickers on mobile. Fern does not request broad Android storage access.
+
 ## Quality Checks
 
 Run the project checks before submitting changes:
@@ -124,15 +166,15 @@ npm run format
 
 ## Technology
 
-| Layer | Technology |
-| --- | --- |
-| Desktop runtime | [Tauri 2](https://tauri.app/) |
-| Interface | [Svelte 5](https://svelte.dev/) and [SvelteKit](https://svelte.dev/docs/kit) |
-| Language | [TypeScript](https://www.typescriptlang.org/) |
-| Native backend | [Rust](https://www.rust-lang.org/) |
-| Database | [SQLite](https://www.sqlite.org/) through `rusqlite` |
-| Charts | [Chart.js](https://www.chartjs.org/) |
-| Tooling | [Vite](https://vite.dev/), ESLint, Prettier, and Vitest |
+| Layer           | Technology                                                                   |
+| --------------- | ---------------------------------------------------------------------------- |
+| Desktop runtime | [Tauri 2](https://tauri.app/)                                                |
+| Interface       | [Svelte 5](https://svelte.dev/) and [SvelteKit](https://svelte.dev/docs/kit) |
+| Language        | [TypeScript](https://www.typescriptlang.org/)                                |
+| Native backend  | [Rust](https://www.rust-lang.org/)                                           |
+| Database        | [SQLite](https://www.sqlite.org/) through `rusqlite`                         |
+| Charts          | [Chart.js](https://www.chartjs.org/)                                         |
+| Tooling         | [Vite](https://vite.dev/), ESLint, Prettier, and Vitest                      |
 
 ## Project Structure
 
@@ -159,7 +201,6 @@ Fern is designed around local ownership:
 - The complete database can be backed up and restored.
 
 You remain responsible for securely storing exported files and database backups.
-
 
 <div align="center">
 

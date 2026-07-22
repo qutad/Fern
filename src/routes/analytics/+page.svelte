@@ -40,8 +40,7 @@
 	<MonthPicker />
 </header>
 {#if loading || error || !data}<Status {loading} {error} />{:else}<section
-		class="grid metrics"
-		style="grid-template-columns:repeat(3,1fr)"
+		class="grid metrics analytics-metrics"
 	>
 		<div class="card metric">
 			<div class="metric-label">Average daily spend<Gauge size={17} /></div>

@@ -28,17 +28,14 @@
 		toast = message;
 		setTimeout(() => (toast = ''), 2800);
 	}
-	async function pathAction(kind: 'export' | 'backup' | 'restore') {
-		const fallback = kind === 'export' ? 'fern-transactions.csv' : 'fern-backup.db';
-		const path = prompt(
-			`Enter a path to ${kind === 'restore' ? 'restore from' : 'save to'}:`,
-			fallback
-		);
-		if (!path) return;
-		if (kind === 'export') await api.exportCsv(path);
-		if (kind === 'backup') await api.createBackup(path);
-		if (kind === 'restore') await api.restoreBackup(path);
-		notify(kind === 'restore' ? 'Backup restored' : 'File created successfully');
+	async function fileAction(kind: 'export' | 'backup' | 'restore') {
+		const completed =
+			kind === 'export'
+				? await api.exportCsv()
+				: kind === 'backup'
+					? await api.createBackup()
+					: await api.restoreBackup();
+		if (completed) notify(kind === 'restore' ? 'Backup restored' : 'File created successfully');
 	}
 </script>
 
@@ -131,7 +128,7 @@
 					<h3>Export transactions</h3>
 					<p>Create a portable CSV copy of your ledger.</p>
 				</div>
-				<button class="button" onclick={() => pathAction('export')}
+				<button class="button" onclick={() => fileAction('export')}
 					><Download size={16} /> Export CSV</button
 				>
 			</div>
@@ -148,7 +145,7 @@
 					<h3>Create backup</h3>
 					<p>Save a complete, restorable database file.</p>
 				</div>
-				<button class="button" onclick={() => pathAction('backup')}
+				<button class="button" onclick={() => fileAction('backup')}
 					><DatabaseBackup size={16} /> Back up</button
 				>
 			</div>
@@ -157,7 +154,7 @@
 					<h3>Restore backup</h3>
 					<p>Replace current data from a Fern backup.</p>
 				</div>
-				<button class="button danger" onclick={() => pathAction('restore')}
+				<button class="button danger" onclick={() => fileAction('restore')}
 					><ArchiveRestore size={16} /> Restore</button
 				>
 			</div>

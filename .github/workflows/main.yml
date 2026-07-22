@@ -96,8 +96,155 @@ jobs:
         with:
           tagName: ${{ env.RELEASE_TAG }}
           releaseName: Fern ${{ env.RELEASE_TAG }}
-          releaseBody: Download the installer for your operating system below.
+          releaseBody: Download the desktop or mobile package for your operating system below.
           generateReleaseNotes: true
           releaseDraft: false
           prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
           args: ${{ matrix.args }}
+
+  android:
+    name: Build Android APK
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager \
+            'platforms;android-36' \
+            'build-tools;35.0.0' \
+            'ndk;28.2.13676358'
+          echo "NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify release version
+        run: |
+          node -e 'const fs=require("node:fs"); const pkg=JSON.parse(fs.readFileSync("package.json","utf8")); const tauri=JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json","utf8")); const cargo=fs.readFileSync("src-tauri/Cargo.toml","utf8").match(/\[package\][\s\S]*?^version\s*=\s*"([^"]+)"/m); const tag=process.env.RELEASE_TAG; if(tag !== "v"+tauri.version || pkg.version !== tauri.version || cargo?.[1] !== tauri.version){ console.error("Version mismatch: tag=%s package=%s tauri=%s cargo=%s",tag,pkg.version,tauri.version,cargo?.[1]); process.exit(1); }'
+
+      - name: Configure Android signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [[ -z "$ANDROID_KEYSTORE_BASE64" || -z "$ANDROID_KEYSTORE_PASSWORD" || -z "$ANDROID_KEY_ALIAS" ]]; then
+            echo 'ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, and ANDROID_KEY_ALIAS secrets are required.' >&2
+            exit 1
+          fi
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/fern-release.jks"
+          {
+            echo "password=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "storeFile=$RUNNER_TEMP/fern-release.jks"
+          } > src-tauri/gen/android/keystore.properties
+
+      - name: Build signed Android APK
+        run: npm run android:build
+
+      - name: Prepare Android artifact
+        run: |
+          mkdir -p dist
+          cp src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk dist/Fern-${RELEASE_TAG}-android-arm64.apk
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: fern-android-${{ env.RELEASE_TAG }}
+          path: dist/*.apk
+          if-no-files-found: error
+
+  ios:
+    name: Build unsigned iOS IPA
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install iOS tooling
+        run: brew install cocoapods xcodegen libimobiledevice
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify release version
+        run: |
+          node -e 'const fs=require("node:fs"); const pkg=JSON.parse(fs.readFileSync("package.json","utf8")); const tauri=JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json","utf8")); const cargo=fs.readFileSync("src-tauri/Cargo.toml","utf8").match(/\[package\][\s\S]*?^version\s*=\s*"([^"]+)"/m); const tag=process.env.RELEASE_TAG; if(tag !== "v"+tauri.version || pkg.version !== tauri.version || cargo?.[1] !== tauri.version){ console.error("Version mismatch: tag=%s package=%s tauri=%s cargo=%s",tag,pkg.version,tauri.version,cargo?.[1]); process.exit(1); }'
+
+      - name: Build unsigned iOS IPA
+        run: npm run ios:build:unsigned
+
+      - name: Prepare iOS artifact
+        run: |
+          mkdir -p dist
+          cp src-tauri/gen/apple/build/arm64/Fern.ipa dist/Fern-${RELEASE_TAG}-ios-unsigned.ipa
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: fern-ios-${{ env.RELEASE_TAG }}
+          path: dist/*.ipa
+          if-no-files-found: error
+
+  publish-mobile:
+    name: Publish mobile artifacts
+    needs: [build, android, ios]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download mobile artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: fern-*-${{ env.RELEASE_TAG }}
+          path: dist
+          merge-multiple: true
+
+      - name: Attach mobile artifacts to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$RELEASE_TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"

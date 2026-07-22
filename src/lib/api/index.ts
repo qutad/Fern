@@ -1,4 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
+import { appCacheDir, join } from '@tauri-apps/api/path';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { readFile, readTextFile, remove, writeFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import type {
 	AnalyticsData,
 	BootstrapData,
@@ -386,20 +389,28 @@ export const api = {
 			largestExpense: expenses[0] ?? null
 		};
 	},
+	async pickCsv(): Promise<{ path: string; name: string } | null> {
+		if (!inTauri()) return { path: 'transactions.csv', name: 'transactions.csv' };
+		const path = await open({ multiple: false, filters: [{ name: 'CSV', extensions: ['csv'] }] });
+		const name = path?.split('/').at(-1);
+		return path ? { path, name: name ? decodeURIComponent(name) : 'transactions.csv' } : null;
+	},
 	async previewCsv(path: string): Promise<CsvPreview> {
 		if (!inTauri()) return mockApi.previewCsv(path);
+		const contents = await readTextFile(path);
 		const raw = await command<{
 			headers: string[];
 			rows: Record<string, string>[];
 			totalRows: number;
-		}>('preview_csv', { input: { path, limit: 20 } });
+		}>('preview_csv', { input: { contents, limit: 20 } });
 		return { ...raw, rows: raw.rows.map((row) => raw.headers.map((header) => row[header] ?? '')) };
 	},
 	async importCsv(path: string, mapping: CsvMapping): Promise<{ imported: number }> {
 		if (!inTauri()) return mockApi.importCsv(path, mapping);
+		const contents = await readTextFile(path);
 		return command('import_csv', {
 			input: {
-				path,
+				contents,
 				mapping: { ...mapping, transactionType: mapping.type },
 				accountId: accounts[0]?.id ?? 'account-default',
 				defaultCategoryId: null,
@@ -409,17 +420,57 @@ export const api = {
 			}
 		});
 	},
-	async exportCsv(path: string): Promise<void> {
-		if (!inTauri()) return mockApi.exportCsv(path);
-		await command('export_csv', { input: { path, filter: null } });
+	async exportCsv(): Promise<boolean> {
+		if (!inTauri()) {
+			await mockApi.exportCsv('fern-transactions.csv');
+			return true;
+		}
+		const path = await save({
+			defaultPath: 'fern-transactions.csv',
+			filters: [{ name: 'CSV', extensions: ['csv'] }]
+		});
+		if (!path) return false;
+		const contents = await command<string>('export_csv', { input: { filter: null } });
+		await writeTextFile(path, contents);
+		return true;
 	},
-	async createBackup(path: string): Promise<void> {
-		if (!inTauri()) return mockApi.createBackup(path);
-		await command('create_backup', { input: { path } });
+	async createBackup(): Promise<boolean> {
+		if (!inTauri()) {
+			await mockApi.createBackup('fern-backup.db');
+			return true;
+		}
+		const destination = await save({
+			defaultPath: 'fern-backup.db',
+			filters: [{ name: 'Fern backup', extensions: ['db'] }]
+		});
+		if (!destination) return false;
+		const temporary = await join(await appCacheDir(), `fern-backup-${Date.now()}.db`);
+		try {
+			await command('create_backup', { input: { path: temporary } });
+			await writeFile(destination, await readFile(temporary));
+		} finally {
+			await remove(temporary).catch(() => undefined);
+		}
+		return true;
 	},
-	async restoreBackup(path: string): Promise<void> {
-		if (!inTauri()) return mockApi.restoreBackup(path);
-		await command('restore_backup', { input: { path } });
+	async restoreBackup(): Promise<boolean> {
+		if (!inTauri()) {
+			await mockApi.restoreBackup('fern-backup.db');
+			return true;
+		}
+		const source = await open({
+			multiple: false,
+			filters: [{ name: 'Fern backup', extensions: ['db'] }]
+		});
+		if (!source) return false;
+		const temporary = await join(await appCacheDir(), `fern-restore-${Date.now()}.db`);
+		try {
+			await writeFile(temporary, await readFile(source));
+			await command('restore_backup', { input: { path: temporary } });
+		} finally {
+			await remove(temporary).catch(() => undefined);
+		}
+		return true;
 	},
 	async updateSettings(settings: Settings): Promise<Settings> {
 		if (!inTauri()) return mockApi.updateSettings(settings);

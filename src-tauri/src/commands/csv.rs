@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File};
+use std::{collections::HashMap, io::Cursor};
 
 use chrono::NaiveDate;
 use rusqlite::params;
@@ -18,26 +18,27 @@ use crate::{
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CsvPreviewInput {
-    pub path: String,
+    pub contents: String,
     pub limit: Option<usize>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CsvExportInput {
-    pub path: String,
     pub filter: Option<TransactionFilter>,
 }
 
-fn open_reader(path: &str) -> AppResult<::csv::Reader<File>> {
-    if path.trim().is_empty() {
-        return Err(AppError::Validation("path cannot be empty".into()));
+fn open_reader(contents: String) -> AppResult<::csv::Reader<Cursor<Vec<u8>>>> {
+    if contents.trim().is_empty() {
+        return Err(AppError::Validation("CSV cannot be empty".into()));
     }
-    Ok(::csv::ReaderBuilder::new().flexible(true).from_path(path)?)
+    Ok(::csv::ReaderBuilder::new()
+        .flexible(true)
+        .from_reader(Cursor::new(contents.into_bytes())))
 }
 
 #[tauri::command]
 pub fn preview_csv(input: CsvPreviewInput) -> AppResult<CsvPreview> {
-    let mut reader = open_reader(&input.path)?;
+    let mut reader = open_reader(input.contents)?;
     let headers = reader
         .headers()?
         .iter()
@@ -83,7 +84,7 @@ pub fn import_csv(
     database: State<'_, Database>,
     input: CsvImportOptions,
 ) -> AppResult<ImportResult> {
-    let mut reader = open_reader(&input.path)?;
+    let mut reader = open_reader(input.contents)?;
     let headers = reader.headers()?.clone();
     for name in [&input.mapping.date, &input.mapping.amount] {
         if !headers.iter().any(|h| h == name) {
@@ -105,13 +106,7 @@ pub fn import_csv(
 }
 
 #[tauri::command]
-pub fn export_csv(database: State<'_, Database>, input: CsvExportInput) -> AppResult<usize> {
-    if input.path.trim().is_empty() {
-        return Err(AppError::Validation("path cannot be empty".into()));
-    }
-    if let Some(parent) = std::path::Path::new(&input.path).parent() {
-        std::fs::create_dir_all(parent)?;
-    }
+pub fn export_csv(database: State<'_, Database>, input: CsvExportInput) -> AppResult<String> {
     database.with_connection(|connection| {
         let transactions = queries::list_transactions(
             connection,
@@ -124,7 +119,7 @@ pub fn export_csv(database: State<'_, Database>, input: CsvExportInput) -> AppRe
             .into_iter()
             .map(|c| (c.id, c.name))
             .collect::<HashMap<_, _>>();
-        let mut writer = ::csv::Writer::from_path(&input.path)?;
+        let mut writer = ::csv::Writer::from_writer(Vec::new());
         writer.write_record([
             "date",
             "description",
@@ -150,8 +145,11 @@ pub fn export_csv(database: State<'_, Database>, input: CsvExportInput) -> AppRe
                 transaction.account_id.as_str(),
             ])?;
         }
-        writer.flush()?;
-        Ok(transactions.len())
+        let bytes = writer
+            .into_inner()
+            .map_err(|error| AppError::Io(error.into_error()))?;
+        String::from_utf8(bytes)
+            .map_err(|error| AppError::Validation(format!("could not encode CSV: {error}")))
     })
 }
 
@@ -160,16 +158,13 @@ mod tests {
     use super::*;
     #[test]
     fn preview_reads_headers_and_limit() {
-        let path = std::env::temp_dir().join(format!("fern-{}.csv", Uuid::new_v4()));
-        std::fs::write(&path, "Date,Amount\n2026-01-01,12.00\n2026-01-02,4.00\n").unwrap();
         let preview = preview_csv(CsvPreviewInput {
-            path: path.to_string_lossy().into(),
+            contents: "Date,Amount\n2026-01-01,12.00\n2026-01-02,4.00\n".into(),
             limit: Some(1),
         })
         .unwrap();
         assert_eq!(preview.headers, ["Date", "Amount"]);
         assert_eq!(preview.rows.len(), 1);
         assert_eq!(preview.total_rows, 2);
-        std::fs::remove_file(path).unwrap();
     }
 }

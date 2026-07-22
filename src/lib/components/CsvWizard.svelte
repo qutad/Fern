@@ -5,6 +5,7 @@
 	let { close, complete } = $props<{ close: () => void; complete: (message: string) => void }>();
 	let step = $state(1),
 		path = $state(''),
+		fileName = $state(''),
 		preview = $state<CsvPreview | null>(null),
 		busy = $state(false),
 		error = $state('');
@@ -13,6 +14,18 @@
 		amount = $state(''),
 		category = $state(''),
 		type = $state('');
+	async function chooseFile() {
+		error = '';
+		try {
+			const file = await api.pickCsv();
+			if (file) {
+				path = file.path;
+				fileName = file.name;
+			}
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Could not open CSV';
+		}
+	}
 	async function inspect() {
 		if (!path) return;
 		busy = true;
@@ -56,16 +69,12 @@
 		{#each [1, 2, 3] as n (n)}<i class:active={n <= step}></i>{/each}
 	</div>
 	{#if step === 1}<span class="eyebrow">Step 1 · Choose a file</span>
-		<p class="muted">
-			Enter the CSV path. In the desktop app this is read locally and never uploaded.
-		</p>
-		<label
-			>CSV file path<input
-				class="field"
-				bind:value={path}
-				placeholder="/home/you/Downloads/transactions.csv"
-			/></label
-		>
+		<p class="muted">Choose a CSV from this device. It is read locally and never uploaded.</p>
+		<button class="file-picker" type="button" onclick={chooseFile}>
+			<span>{fileName || 'No file selected'}</span><strong
+				>{fileName ? 'Change' : 'Choose CSV'}</strong
+			>
+		</button>
 	{:else if step === 2 && preview}<span class="eyebrow">Step 2 · Map columns</span>
 		<p class="muted">Match your bank’s headings to Fern fields. {preview.totalRows} rows found.</p>
 		<div class="form-grid">
